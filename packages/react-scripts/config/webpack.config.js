@@ -37,6 +37,7 @@ const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin'
 const getCacheIdentifier = require('react-dev-utils/getCacheIdentifier');
 // @remove-on-eject-end
 const createEnvironmentHash = require('./webpack/persistentCache/createEnvironmentHash');
+const {applyOttoChromConfig} = require("./ottochromConfig");
 
 // Source maps are resource heavy and can cause out of memory issue for large source files.
 const shouldUseSourceMap = process.env.GENERATE_SOURCEMAP !== 'false';
@@ -97,9 +98,14 @@ const hasJsxRuntime = (() => {
 
 // This is the production and development configuration.
 // It is focused on developer experience, fast rebuilds, and a minimal bundle.
-module.exports = function (webpackEnv) {
+module.exports = function (webpackEnv, target = 'web') {
   const isEnvDevelopment = webpackEnv === 'development';
   const isEnvProduction = webpackEnv === 'production';
+
+
+  // OttoChrom custom: boolean flag to change config based on the
+  // target. Node target is used for server builds.
+  const isTargetNode = target === 'node';
 
   // Variable used for enabling profiling in Production
   // passed into alias object. Uses a flag if passed into the build command
@@ -196,7 +202,7 @@ module.exports = function (webpackEnv) {
     return loaders;
   };
 
-  return {
+  const config = {
     target: ['browserslist'],
     // Webpack noise constrained to errors and warnings
     stats: 'errors-warnings',
@@ -426,6 +432,11 @@ module.exports = function (webpackEnv) {
                     require.resolve('babel-preset-react-app'),
                     {
                       runtime: hasJsxRuntime ? 'automatic' : 'classic',
+
+                      // OttoChrom custom: prevent using ES modules
+                      // in Node, leave as undefined otherwise to get
+                      // the default behavior.
+                      useESModules: isTargetNode ? false : undefined,
                     },
                   ],
                 ],
@@ -450,6 +461,10 @@ module.exports = function (webpackEnv) {
                 ),
                 // @remove-on-eject-end
                 plugins: [
+                  // OttoChrom custom: add loadable babel plugin for
+                  // application files
+                  isTargetNode && require.resolve('@loadable/babel-plugin'),
+
                   isEnvDevelopment &&
                     shouldUseReactRefresh &&
                     require.resolve('react-refresh/babel'),
@@ -793,4 +808,5 @@ module.exports = function (webpackEnv) {
     // our own hints via the FileSizeReporter
     performance: false,
   };
+  return applyOttoChromConfig(config, {target, isEnvProduction})
 };
